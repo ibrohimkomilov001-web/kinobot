@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Database - GitHub'ga yuklanmaydi (har bir serverda alohida)
+kino_bot.db
+
+# Backups folder - local backups
+backups/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# MUHIM: last_backup_id.txt GitHub'ga YUKLANADI
+# Chunki Railway deploy qilganda shu file_id orqali database tiklanadi
+# last_backup_id.txt  <- bu COMMENT, gitignore qilmaymiz!
