@@ -1277,7 +1277,7 @@ async def add_movie_code(message: Message, state: FSMContext):
     # Baza kanalga yuboriladigan caption - chiroyli shrift
     caption = (
         f"🎬 FILM: {data['title']}\n\n"
-        f"🎬 FILM: {data['genre']}\n"
+        f"🎭 Janr: {data['genre']}\n"
         f"⏱ Davomiylik: {data['duration']}\n"
         f"🔢 Kod: {code}\n\n"
         f"🤖 Bot orqali ko'ring: {bot_link}"
