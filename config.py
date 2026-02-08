@@ -10,7 +10,10 @@ BOT_TOKEN = os.getenv("BOT_TOKEN") or os.getenv("bot_token")
 
 # Admin ID
 admin_id_str = os.getenv("ADMIN_ID") or os.getenv("admin_id") or "0"
-ADMINS = [int(admin_id_str)]
+# "ID: 12345" formatini ham qo'llab-quvvatlash
+import re
+digits = re.sub(r'\D', '', admin_id_str)
+ADMINS = [int(digits)] if digits else [0]
 
 # Database fayl nomi
 DATABASE_NAME = "kino_bot.db"
