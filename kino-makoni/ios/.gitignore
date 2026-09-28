@@ -1,0 +1,13 @@
+# XcodeGen natijalari (project.yml dan qayta yaratiladi)
+KinoMakoni.xcodeproj/
+KinoMakoni/Info.plist
+
+# Build va Xcode vaqtinchalik fayllari
+build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.ipa
+*.xcarchive
+build.log
+.DS_Store

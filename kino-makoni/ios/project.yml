@@ -1,0 +1,94 @@
+# Kino Makoni — iOS loyiha spetsifikatsiyasi (XcodeGen)
+#
+# Generatsiya:  brew install xcodegen && xcodegen generate
+# Natija:       KinoMakoni.xcodeproj (git'ga qo'shilmaydi)
+#
+# API manzili build sozlamasi orqali beriladi:
+#   xcodebuild ... API_BASE_URL="https://api.kinomakoni.uz"
+# Bo'sh qoldirilsa ilova demo rejimda (ichki mock katalog bilan) ishlaydi.
+
+name: KinoMakoni
+
+options:
+  bundleIdPrefix: uz.kinomakoni
+  developmentLanguage: uz
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    API_BASE_URL: ""
+
+targets:
+  KinoMakoni:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: KinoMakoni
+        excludes:
+          - "Info.plist"
+    info:
+      path: KinoMakoni/Info.plist
+      properties:
+        CFBundleDevelopmentRegion: uz
+        CFBundleDisplayName: Kino Makoni
+        CFBundleName: $(PRODUCT_NAME)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        KMApiBaseURL: $(API_BASE_URL)
+        UIUserInterfaceStyle: Dark
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIBackgroundModes:
+          - audio
+        ITSAppUsesNonExemptEncryption: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: uz.kinomakoni.app
+        PRODUCT_NAME: KinoMakoni
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_PREVIEWS: "YES"
+        GENERATE_INFOPLIST_FILE: "NO"
+        INFOPLIST_FILE: KinoMakoni/Info.plist
+        SWIFT_VERSION: "5.0"
+        SWIFT_STRICT_CONCURRENCY: minimal
+        API_BASE_URL: ""
+        SUPPORTS_MACCATALYST: "NO"
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "NO"
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: "NO"
+
+schemes:
+  KinoMakoni:
+    build:
+      targets:
+        KinoMakoni: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
