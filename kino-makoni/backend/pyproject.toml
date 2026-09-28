@@ -12,6 +12,14 @@ target-version = "py311"
 select = ["E", "F", "I", "B", "UP", "ASYNC", "RUF"]
 ignore = ["RUF001", "RUF002", "RUF003"]  # o'zbekcha matndagi apostroflar
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI'ning Depends()/Query()/Header() so'rov default'lari — B008 xato signal beradi
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header", "fastapi.Path"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff.lint.per-file-ignores]
+# Alembic avtogeneratsiya qilgan migratsiyalar — uzun qatorlar tabiiy
+"migrations/versions/*" = ["E501"]
