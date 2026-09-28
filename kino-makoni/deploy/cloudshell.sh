@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Kino Makoni — AWS CloudShell'dan bot serveriga o'rnatish (.pem kalit kerak emas).
 #
-# AWS Console → yuqori o'ngda region: Europe (Frankfurt) eu-central-1 → CloudShell:
+# AWS Console → CloudShell (istalgan region — server IP bo'yicha barcha regionlardan topiladi):
 #   curl -fsSL https://raw.githubusercontent.com/ibrohimkomilov001-web/kinobot/refs/heads/claude/eager-lovelace-0db0j8/kino-makoni/deploy/cloudshell.sh -o cs.sh
 #   TG_API_ID=... TG_API_HASH=... TG_HELPER_BOT_TOKEN=... bash cs.sh
 #
@@ -13,7 +13,6 @@
 #   4. Oxirida vaqtinchalik 22-port qoidasini o'chiradi
 set -euo pipefail
 
-export AWS_DEFAULT_REGION="${AWS_REGION:-eu-central-1}"
 SERVER_IP="${SERVER_IP:-3.127.203.19}"
 DOMAIN="${DOMAIN:-kinomakoni.uz}"
 RAW="https://raw.githubusercontent.com/ibrohimkomilov001-web/kinobot/refs/heads/claude/eager-lovelace-0db0j8/kino-makoni/deploy/bootstrap.sh"
@@ -29,17 +28,27 @@ die()  { printf '\n\033[1;31mXATO: %s\033[0m\n' "$*" >&2; exit 1; }
 
 say "AWS akkaunt"
 ACCOUNT="$(aws sts get-caller-identity --query Account --output text)" || die "AWS CLI ishlamadi"
-ok "Akkaunt ID: $ACCOUNT  (region: $AWS_DEFAULT_REGION)"
+ok "Akkaunt ID: $ACCOUNT"
 
 say "Bot serveri qidirilmoqda ($SERVER_IP)"
-INFO="$(aws ec2 describe-instances \
-  --filters "Name=ip-address,Values=$SERVER_IP" \
-  --query 'Reservations[0].Instances[0].[InstanceId, SecurityGroups[0].GroupId, State.Name]' \
-  --output text)" || die "describe-instances ishlamadi"
+lookup() { # lookup REGION -> "IID SG STATE" yoki bo'sh
+  aws ec2 describe-instances --region "$1" \
+    --filters "Name=ip-address,Values=$SERVER_IP" \
+    --query 'Reservations[0].Instances[0].[InstanceId, SecurityGroups[0].GroupId, State.Name]' \
+    --output text 2>/dev/null | grep -v '^None' || true
+}
+REGION="" INFO=""
+# Avval ehtimoliy regionlar (3.12x.x.x — Frankfurt), keyin barcha yoqilgan regionlar
+for r in ${KM_REGION:-} eu-central-1 ${AWS_REGION:-} \
+         $(aws ec2 describe-regions --query 'Regions[].RegionName' --output text 2>/dev/null); do
+  INFO="$(lookup "$r")"
+  if [ -n "$INFO" ]; then REGION="$r"; break; fi
+done
+[ -n "$REGION" ] || die "$SERVER_IP IP'li instance hech bir regionda topilmadi"
+# Keyingi barcha aws buyruqlari shu regionda (CloudShell'ning AWS_REGION'idan ustun)
+export AWS_REGION="$REGION" AWS_DEFAULT_REGION="$REGION"
 read -r IID SG STATE <<< "$INFO"
-[ -n "${IID:-}" ] && [ "$IID" != "None" ] \
-  || die "$SERVER_IP IP'li instance $AWS_DEFAULT_REGION da topilmadi (region to'g'rimi?)"
-ok "Instance: $IID ($STATE), security group: $SG"
+ok "Instance: $IID ($STATE), region: $REGION, security group: $SG"
 
 # open_port PORT CIDR TAVSIF  → "added" | "exists"
 open_port() {

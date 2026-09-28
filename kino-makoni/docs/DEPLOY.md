@@ -157,7 +157,7 @@ sparse-checkout qiladi, `.env`ni yozadi va
 
 #### AWS CloudShell orqali (`.pem` kalitsiz)
 
-AWS Console → region **Europe (Frankfurt) eu-central-1** → CloudShell:
+AWS Console → CloudShell (istalgan region — server barcha regionlardan topiladi):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ibrohimkomilov001-web/kinobot/refs/heads/claude/eager-lovelace-0db0j8/kino-makoni/deploy/cloudshell.sh -o cs.sh
