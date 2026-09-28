@@ -155,6 +155,20 @@ orqali push qiling). Workflow EC2'ga faqat `kino-makoni/` katalogini
 sparse-checkout qiladi, `.env`ni yozadi va
 `docker compose -p kino-makoni-app up -d --build` ishga tushiradi.
 
+#### AWS CloudShell orqali (`.pem` kalitsiz)
+
+AWS Console → region **Europe (Frankfurt) eu-central-1** → CloudShell:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ibrohimkomilov001-web/kinobot/refs/heads/claude/eager-lovelace-0db0j8/kino-makoni/deploy/cloudshell.sh -o cs.sh
+TG_API_ID=... TG_API_HASH=... TG_HELPER_BOT_TOKEN=... bash cs.sh
+```
+
+`cloudshell.sh` akkaunt ID'sini chiqaradi, bot serverini IP bo'yicha topadi,
+80/443 ni ochadi, EC2 Instance Connect bilan (vaqtinchalik 22-port faqat
+CloudShell IP'siga) serverga kirib `bootstrap.sh`ni ishga tushiradi va
+oxirida vaqtinchalik qoidani o'chiradi.
+
 #### Eng oson yo'l: `bootstrap.sh` (bitta buyruq)
 
 EC2'da (bot ishlayotgan server) bir marta:
