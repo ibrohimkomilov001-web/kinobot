@@ -25,6 +25,8 @@ async def list_genres(
         .join(Title, Title.id == TitleGenre.title_id)
         .where(Title.is_deleted.is_(False))
         .group_by(TitleGenre.slug)
+        # Bitta kinodagi (ko'pincha xato yozilgan) janrlar chiplarda ko'rinmasin
+        .having(func.count(TitleGenre.id) >= 2)
         .order_by(func.count(TitleGenre.id).desc(), TitleGenre.slug)
     )
     rows = (await session.execute(stmt)).all()

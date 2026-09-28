@@ -12,7 +12,7 @@ import re
 from app.services.text_clean import strip_emoji
 from app.services.translit import normalize_title
 
-_SPLIT_RE = re.compile(r"[,/|]|\bva\b", re.IGNORECASE | re.UNICODE)
+_SPLIT_RE = re.compile(r"[,/|#]|\bva\b", re.IGNORECASE | re.UNICODE)
 _STRIP_CHARS = " \t.,-–—•#"
 
 
@@ -23,18 +23,46 @@ def genre_slug(name: str) -> str:
 # Ruscha/inglizcha/katta-kichik harfli variantlar → yagona o'zbekcha nom.
 # Kalitlar normalize_title() orqali solishtiriladi ("драма" → "drama").
 _CANONICAL_SOURCE: dict[str, list[str]] = {
-    "Drama": ["drama", "драма"],
-    "Komediya": ["komediya", "комедия", "comedy"],
-    "Jangari": ["jangari", "боевик", "action", "экшн"],
+    "Drama": ["drama", "драма", "dramma"],
+    "Komediya": ["komediya", "комедия", "comedy", "kamedya", "kamediya", "komedya"],
+    "Jangari": [
+        "jangari",
+        "боевик",
+        "action",
+        "экшн",
+        "jangaru",
+        "jangari filim",
+        "jangari film",
+        "aksiya",
+    ],
     "Triller": ["triller", "триллер", "thriller"],
     "Melodrama": ["melodrama", "мелодрама"],
-    "Romantika": ["romantika", "романтика", "романтический", "romance"],
+    "Romantika": ["romantika", "романтика", "романтический", "romance", "romantik", "ramantik"],
     "Sarguzasht": ["sarguzasht", "приключения", "приключение", "adventure"],
-    "Oilaviy": ["oilaviy", "семейный", "семейное", "family"],
-    "Fantastika": ["fantastika", "фантастика", "sci-fi", "science fiction"],
+    "Oilaviy": ["oilaviy", "семейный", "семейное", "family", "oila"],
+    "Fantastika": [
+        "fantastika",
+        "фантастика",
+        "sci-fi",
+        "science fiction",
+        "fantastik",
+        "ilmiy fantastika",
+        "ilmiy",
+    ],
     "Fentezi": ["fentezi", "фэнтези", "fantasy"],
-    "Qo'rqinchli": ["qo'rqinchli", "qorqinchli", "ужасы", "ужас", "horror"],
-    "Detektiv": ["detektiv", "детектив", "mystery"],
+    "Qo'rqinchli": [
+        "qo'rqinchli",
+        "qorqinchli",
+        "ужасы",
+        "ужас",
+        "horror",
+        "ujes",
+        "ujas",
+        "qorqinchoq",
+        "qo'rquv",
+        "qorquv",
+    ],
+    "Detektiv": ["detektiv", "детектив", "mystery", "misteriya"],
     "Kriminal": ["kriminal", "криминал", "crime"],
     "Tarixiy": ["tarixiy", "исторический", "история", "history"],
     "Harbiy": ["harbiy", "военный", "война", "war"],
@@ -43,7 +71,7 @@ _CANONICAL_SOURCE: dict[str, list[str]] = {
     "Hujjatli": ["hujjatli", "документальный", "documentary"],
     "Anime": ["anime", "аниме"],
     "Sport": ["sport", "спорт"],
-    "Myuzikl": ["myuzikl", "мюзикл", "musical"],
+    "Myuzikl": ["myuzikl", "мюзикл", "musical", "musiqiy", "музыка"],
     "Vestern": ["vestern", "вестерн", "western"],
 }
 _CANONICAL: dict[str, str] = {

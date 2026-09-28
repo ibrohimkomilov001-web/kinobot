@@ -189,7 +189,8 @@ async def test_genres_endpoint_counts(app_client: AsyncClient, session_factory, 
     resp = await app_client.get("/v1/genres", headers=auth_headers)
     body = {item["slug"]: item["count"] for item in resp.json()["items"]}
     assert body["jangari"] == 2
-    assert body["drama"] == 1
+    # Bitta kinodagi janr chiplarda ko'rsatilmaydi (ko'pincha xato yozilgan)
+    assert "drama" not in body
 
 
 async def test_home_sections_present(app_client: AsyncClient, session_factory, auth_headers):
