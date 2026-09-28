@@ -155,6 +155,21 @@ orqali push qiling). Workflow EC2'ga faqat `kino-makoni/` katalogini
 sparse-checkout qiladi, `.env`ni yozadi va
 `docker compose -p kino-makoni-app up -d --build` ishga tushiradi.
 
+#### Eng oson yo'l: `bootstrap.sh` (bitta buyruq)
+
+EC2'da (bot ishlayotgan server) bir marta:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ibrohimkomilov001-web/kinobot/refs/heads/claude/eager-lovelace-0db0j8/kino-makoni/deploy/bootstrap.sh -o bootstrap.sh
+TG_API_ID=... TG_API_HASH=... TG_HELPER_BOT_TOKEN=... DOMAIN=kinomakoni.uz bash bootstrap.sh
+```
+
+Skript swap, kod, `.env`, bot bazasida o'qish roli + alohida ilova bazasi
+(`~/KINO_MAKON/.env`dagi `DATABASE_URL`/`BASE_CHANNEL_ID` faqat o'qiladi),
+Docker, sog'liq va Telegram tekshiruvini bajaradi; oxirida DNS holatini
+ko'rsatadi. Qayta ishga tushirish xavfsiz (yangilash uchun ham shu skript).
+80/443 boshqa veb-server band qilgan bo'lsa hech narsaga tegmay to'xtaydi.
+
 #### Qo'lda deploy (GitHub Actions ishlamasa)
 
 Akkauntda Actions bloklangan bo'lsa (job'lar bir necha soniyada log'siz

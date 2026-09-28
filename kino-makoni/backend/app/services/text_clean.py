@@ -45,6 +45,8 @@ def is_emoji_only(line: str) -> bool:
 
 _URL_RE = re.compile(r"(https?://\S+|t\.me/\S+|www\.\S+)", re.IGNORECASE)
 _MENTION_LINE_RE = re.compile(r"^(@[\w\d_]+[\s,]*)+$", re.UNICODE)
+# Qator ichidagi reklama mention'i: "👉 @kinobot", "Kanal: @xyz"
+_MENTION_ANY_RE = re.compile(r"(?<![\w.])@[A-Za-z][\w]{3,}", re.UNICODE)
 _CODE_LINE_RE = re.compile(r"^(#\S+\s*)+$")
 _LABEL_RE = re.compile(
     r"^(janr(i|lar)?|sifat(i)?|til(i)?|davomiylig?i|nomi|kodi?|yil(i)?|"
@@ -53,17 +55,23 @@ _LABEL_RE = re.compile(
 )
 
 
-def extract_description(caption: str | None) -> str | None:
+def _norm(text: str) -> str:
+    return re.sub(r"[\W_]+", "", strip_emoji(text), flags=re.UNICODE).casefold()
+
+
+def extract_description(caption: str | None, title: str | None = None) -> str | None:
     """Bot caption'idan tabiiy tavsif matnini ajratib oladi.
 
     Olib tashlanadi: HTML teglari/entity'lar, faqat link/mention bo'lgan
     qatorlar, kod qatori ("#kino #1234"), janr/sifat/til yorliq qatorlari
-    ("Janri: ...") va faqat emoji'dan iborat qatorlar. Hech narsa qolmasa
+    ("Janri: ..."), ichida @mention bor reklama qatorlari, sarlavhani
+    takrorlovchi qator va faqat emoji'dan iborat qatorlar. Hech narsa qolmasa
     None qaytadi.
     """
     if not caption:
         return None
     text = strip_html(caption)
+    title_key = _norm(title) if title else ""
     kept: list[str] = []
     for raw_line in text.split("\n"):
         # HTML teg o'rniga qo'yilgan bo'shliqlar qo'shimcha ikkilanishi mumkin
@@ -74,7 +82,9 @@ def extract_description(caption: str | None) -> str | None:
             continue
         if _MENTION_LINE_RE.match(line):
             continue
-        if _URL_RE.search(line):
+        if _URL_RE.search(line) or _MENTION_ANY_RE.search(line):
+            continue
+        if title_key and _norm(line) == title_key:
             continue
         de_emoji = strip_emoji(line).strip(" :-—•")
         if _LABEL_RE.match(de_emoji):

@@ -264,3 +264,18 @@ async def test_description_extraction_html_tags_stripped(session_factory):
 
     title = await _get_title(session_factory, "movie", 1)
     assert title.description == "Bu kino haqida & qiziqarli tarix."
+
+
+def test_description_drops_inline_mention_and_title_repeat():
+    from app.services.text_clean import extract_description
+
+    caption = (
+        "🎬 <b>Qasoskorlar: Final</b>\n\n"
+        "Qahramonlar so'nggi jangga otlanadi.\n"
+        "👉 @kinomakonbot"
+    )
+    assert extract_description(caption, "Qasoskorlar: Final") == (
+        "Qahramonlar so'nggi jangga otlanadi."
+    )
+    # E-mail mention hisoblanmaydi
+    assert extract_description("Yozing: info@mail.uz", None) == "Yozing: info@mail.uz"

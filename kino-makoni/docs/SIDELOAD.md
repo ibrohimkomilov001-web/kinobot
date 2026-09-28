@@ -15,14 +15,11 @@ kompyuterda uni imzolab qurilmaga o'rnatadi.
 3. Codemagic repo ildizidagi `codemagic.yaml`ni avtomatik topadi va
    "YAML aniqlangan" deb ko'rsatadi — shu tarzda davom eting (workflow
    tanlashning hojati yo'q, fayl ichida allaqachon bor).
-4. **Environment variables** → **Variable groups** → yangi guruh yarating,
-   nomi aynan **`kino_makoni`** (kichik harflar, pastki chiziq bilan —
-   `codemagic.yaml`da shu nom bilan ishlatiladi). Guruh ichiga:
-   - `API_BASE_URL` = backend manzili, masalan `https://api.kinomakoni.uz`
-     (Backend hali deploy qilinmagan bo'lsa — bo'sh qoldiring, ilova
-     **demo rejim**da ishlaydi: internetga ulanmasdan namunaviy ma'lumot
-     ko'rsatadi).
-5. **Start new build** → workflow: **`kino-makoni-ios-unsigned`** →
+4. Hech narsa sozlash shart emas: `API_BASE_URL` (`https://api.kinomakoni.uz`)
+   `codemagic.yaml` ichida turibdi. Demo rejim kerak bo'lsa (backendsiz,
+   namunaviy katalog) — faylda uni `""` qiling.
+5. **Start new build** → branch: **`claude/eager-lovelace-0db0j8`** (yoki
+   `main`, birlashtirilgach) → workflow: **`kino-makoni-ios-unsigned`** →
    Start build.
 6. Build tugagach **Artifacts** bo'limidan `KinoMakoni.ipa`ni yuklab oling.
 

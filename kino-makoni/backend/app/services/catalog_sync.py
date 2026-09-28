@@ -310,7 +310,7 @@ async def _sync_movies(
         title.quality = m.quality
         title.language = m.language
         title.duration_sec = m.duration
-        title.description = extract_description(m.caption)
+        title.description = extract_description(m.caption, m.title)
         title.is_premium = m.is_premium
         title.views = m.views
         title.tg_channel_id = channel_id
@@ -354,7 +354,7 @@ async def _sync_serials(
         title.quality = None
         title.language = None
         title.duration_sec = None
-        title.description = extract_description(s.caption)
+        title.description = extract_description(s.caption, s.title)
         title.is_premium = s.is_premium
         title.views = s.views
         title.tg_channel_id = channel_id

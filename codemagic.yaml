@@ -7,14 +7,9 @@
 # Codemagic'da ulash: Apps → Add application → shu repo → "codemagic.yaml
 # aniqlangan" tanlanadi (Codemagic uni avtomatik root'dan topadi).
 #
-# Kerakli environment variable group (Codemagic UI: Teams → Environment
-# variable groups → "kino_makoni" nomi bilan yarating):
-#   - API_BASE_URL   — backend manzili, masalan "https://api.kinomakoni.uz"
-#                       (bo'sh qoldirilsa ilova demo rejimda ishlaydi —
-#                       ios/README.md'ga qarang).
-#
-# Guruh hali yaratilmagan yoki bo'sh bo'lsa ham build muvaffaqiyatli o'tadi:
-# API_BASE_URL bo'sh string sifatida ishlatiladi (demo rejim).
+# API_BASE_URL — backend manzili (maxfiy emas, shu yerda turadi). Uni ""
+# qilib qo'ysangiz ilova ichki demo katalog bilan ishlaydi (ios/README.md).
+# Codemagic'da qo'shimcha sozlash shart emas.
 
 workflows:
   kino-makoni-ios-unsigned:
@@ -23,11 +18,8 @@ workflows:
     max_build_duration: 60
     working_directory: kino-makoni/ios
     environment:
-      groups:
-        - kino_makoni
       vars:
-        # Guruhda API_BASE_URL sozlanmagan bo'lsa ham workflow qulamasligi
-        # uchun script ichida "${API_BASE_URL:-}" bilan qayta o'qiladi.
+        API_BASE_URL: "https://api.kinomakoni.uz"
         XCODE_PROJECT: "KinoMakoni.xcodeproj"
         XCODE_SCHEME: "KinoMakoni"
       xcode: latest
