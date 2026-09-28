@@ -1,0 +1,17 @@
+[project]
+name = "kino-makoni-api"
+version = "0.1.0"
+description = "Kino Makoni iOS ilovasi uchun backend (FastAPI)"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]  # o'zbekcha matndagi apostroflar
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
