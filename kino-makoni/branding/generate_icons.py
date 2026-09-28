@@ -8,7 +8,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from PIL import Image, ImageChops, ImageDraw
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 # Theme colors
 DARK_BG = "#07070B"
@@ -21,6 +21,7 @@ DARK_BG_RGB = (7, 7, 11)
 INDIGO_GLOW_RGB = (27, 22, 64)
 AMBER_RGB = (255, 178, 63)
 ORANGE_RGB = (255, 94, 58)
+GOLD_RGB = (232, 193, 102)  # haqiqiy logo tillasi
 
 
 def create_gradient_overlay(size, start_rgb, end_rgb):
@@ -285,12 +286,32 @@ def create_preview_banner(icon_img, base_dir):
     text_x = icon_x + icon_display_size + 80
     text_y = (preview_height - 60) // 2
 
-    draw.text((text_x, text_y), text, fill=AMBER_RGB, font=font)
+    draw.text((text_x, text_y), text, fill=GOLD_RGB, font=font)
 
     preview_path = os.path.join(base_dir, "branding/preview.png")
     banner.save(preview_path, "PNG")
 
     return preview_path
+
+
+def extract_mark(icon_img):
+    """Haqiqiy logodan shaffof belgi: tilla qismlar qoladi, qorong'i fon shaffof bo'ladi.
+
+    Logo fonida faqat qorong'i neytral ranglar, belgida esa yorqin tilla bor —
+    shuning uchun yorqinlik (luma) bo'yicha yumshoq alfa beramiz.
+    """
+    rgb = icon_img.convert("RGB")
+    luma = rgb.convert("L")
+    alpha = luma.point(lambda v: 0 if v <= 60 else 255 if v >= 125 else int((v - 60) * 255 / 65))
+    mark = rgb.convert("RGBA")
+    mark.putalpha(alpha)
+    bbox = alpha.getbbox()
+    if bbox:
+        mark = mark.crop(bbox)
+    side = max(mark.size)
+    square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    square.paste(mark, ((side - mark.size[0]) // 2, (side - mark.size[1]) // 2))
+    return square
 
 
 def create_placeholder_logo(size):
@@ -308,14 +329,19 @@ def main():
     # Load or create icon
     if os.path.exists(logo_path):
         print(f"Found logo at {logo_path}, using it...")
-        icon_img = Image.open(logo_path)
-
-        # If already a full icon, scale to 1024 if needed
-        if icon_img.size[0] != 1024:
+        source = Image.open(logo_path).convert("RGB")
+        # Logo to'liq kvadrat ikonka (o'z foni bilan) — 1024 ga keltiramiz
+        icon_img = source
+        if icon_img.size != (1024, 1024):
             icon_img = icon_img.resize((1024, 1024), Image.Resampling.LANCZOS)
+            if source.size[0] < 1024:
+                # Kattalashtirilganda chetlar yumshab qolmasin
+                icon_img = icon_img.filter(ImageFilter.UnsharpMask(radius=2, percent=60, threshold=2))
+        mark_img = extract_mark(source)
     else:
         print("No logo.png found, creating placeholder...")
         icon_img = draw_placeholder_icon(1024)
+        mark_img = create_placeholder_logo(1024)
 
     # Ensure icon is 1024x1024
     if icon_img.size != (1024, 1024):
@@ -327,7 +353,7 @@ def main():
     print(f"Created: {appicon_contents}")
 
     # Save logo imageset
-    logo_sizes, logo_contents = save_logo_imageset(icon_img, base_dir)
+    logo_sizes, logo_contents = save_logo_imageset(mark_img, base_dir)
     print(f"Created: Logo imageset with sizes {[s[0] for s in logo_sizes]}")
     print(f"Created: {logo_contents}")
 

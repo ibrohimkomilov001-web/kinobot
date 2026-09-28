@@ -8,7 +8,7 @@
 |---|---|---|
 | iOS frontend | **SwiftUI**, iOS 26+, haqiqiy Liquid Glass (`.glassEffect`, `.buttonStyle(.glass)`, `Tab(role: .search)`) | Python UI kutubxonalari Liquid Glass'ni chiza olmaydi |
 | Backend | **Python 3.12 + FastAPI**, SQLAlchemy, Alembic, Telethon | Talab: backend Python'da |
-| Mavzu | Faqat tungi (dark) mavzu, aksent — "kino amber" `#FFB23F` | Logo kelgach aksent logoga moslanadi |
+| Mavzu | Faqat tungi (dark) mavzu, aksent — logodagi tilla `#E8C166` (gradient `#F8E4A9` → `#B7842A`) | Logo ranglariga mos |
 | Video manbai | Botning **maxfiy baza kanali**dan MTProto orqali stream (HTTP Range) | Kontent tayyor; keyinroq admin panel → R2 |
 | Bot bilan aloqa | Bot bazasini **faqat o'qish** (read-only rol) + **alohida yordamchi bot** | Ilova botga hech narsa yozmaydi, bot kodi o'zgarmaydi |
 | Server | AWS EC2 (botniki bilan bir xil server, **alohida** Docker loyiha) + Caddy (HTTPS) | Mavjud infratuzilma |
@@ -55,13 +55,13 @@ Repo ildizidagi eski bot fayllari (`bot.py`, `handlers/` …) bu ishda o'zgartir
 - [ ] Backend: katalog sinxronlash, qidiruv (kirill/lotin), bosh sahifa, sevimlilar, progress, playback
 - [ ] Stream: Telegram MTProto → HTTP Range (AVPlayer uchun), thumbnail'lar
 - [ ] iOS: Bosh sahifa, Qidiruv, Saqlanganlar, Profil, Batafsil, Pleyer (PiP), demo rejim
-- [ ] Codemagic + GitHub Actions: imzosiz `.ipa`
-- [ ] Deploy hujjatlari (EC2 + Caddy + Cloudflare), vaqtinchalik logo
+- [x] Codemagic + GitHub Actions: imzosiz `.ipa`
+- [x] Deploy hujjatlari (EC2 + Caddy + Cloudflare), logo va ikonka
 
 ### 2-bosqich — Ishga tushirish
 - Yordamchi bot, `api_id/api_hash`, read-only rol, ilova bazasi, domen sozlash
 - EC2'ga deploy, haqiqiy kontent bilan sinov, Sideloadly orqali o'rnatish
-- Haqiqiy logo → ikonka va aksent rangi (Icon Composer bilan Liquid Glass ikonka)
+- Icon Composer bilan qatlamli Liquid Glass ikonka (logo asosida)
 - TMDB posterlari (ixtiyoriy kalit)
 
 ### 3-bosqich — Admin panel va R2 (keyinga surilgan)
@@ -74,7 +74,7 @@ Repo ildizidagi eski bot fayllari (`bot.py`, `handlers/` …) bu ishda o'zgartir
 - Push bildirishnomalar, oflayn yuklab olish, tavsiyalar
 
 ## Foydalanuvchi bajarishi kerak bo'lgan ishlar
-1. **Logo**: `kino-makoni/branding/logo.png` (1024×1024 PNG) — repoda topilmadi.
+1. ~~Logo~~ — qabul qilindi (`branding/logo.png`, 512×512). Iloji bo'lsa 1024×1024 PNG asl nusxasini ham yuboring — ikonka tiniqroq chiqadi.
 2. @BotFather'da **yangi yordamchi bot** → botning maxfiy baza kanaliga **admin** qilish.
 3. https://my.telegram.org → `api_id`, `api_hash`.
 4. Neon: bot bazasiga read-only rol + ilova uchun alohida baza (SQL — `docs/DEPLOY.md`).

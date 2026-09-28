@@ -1,38 +1,20 @@
-# Kino Makoni Branding
+# Brending — logo va ikonkalar
 
-## Hozirgi Holat
+- `logo.png` — **asl logo** (foydalanuvchi bergan, 512×512): tilla kino lentasi + play belgisi.
+- `generate_icons.py` — shu logodan barcha iOS assetlarini yaratadi:
+  - `ios/.../AppIcon.appiconset/AppIcon-1024.png` — ilova ikonkasi (1024×1024, shaffofliksiz)
+  - `ios/.../Logo.imageset/` — ilova ichidagi **shaffof** belgi (`Image("Logo")`), 1x/2x/3x
+  - `preview.png` — 1200×630 banner
+- `logo-placeholder.png` — logo bo'lmaganda ishlatiladigan zaxira belgi.
 
-Hozirda ishlatilayotgan icon va logo - bu o'rinbosardir (placeholder). Haqiqiy logotipni qo'shganizdan so'ng, avtomatik ravishda barcha iOS ikonlarini qayta yaratish mumkin.
+## Logoni yangilash
 
-## Haqiqiy Logotipni Qo'shish
+```bash
+pip install pillow
+# yangi logoni kino-makoni/branding/logo.png ga qo'ying (ideal: 1024×1024 PNG)
+python3 kino-makoni/branding/generate_icons.py
+```
 
-1. Haqiqiy logotipingizni `kino-makoni/branding/logo.png` fayli sifatida saqlab qo'ying.
-   - Tavsiya: PNG format, 1024x1024 px (yoki katta), shaffof fon yoki kvadrat fon.
-
-2. Script-ni ishga tushiring:
-   ```bash
-   pip install pillow
-   python3 kino-makoni/branding/generate_icons.py
-   ```
-
-3. Qayta yaratilgan fayllarni Git'ga commit qiling:
-   - `ios/KinoMakoni/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png`
-   - `ios/KinoMakoni/Resources/Assets.xcassets/Logo.imageset/` (hammasi)
-   - `branding/preview.png` (yangilangan)
-
-## Fayllar
-
-- `generate_icons.py` - Ikonlarni yaratadigan Python skripti
-- `logo.png` - Haqiqiy logotip (siz qo'shishingiz kerak)
-- `logo-placeholder.png` - Shaffof o'rinbosar logo
-- `preview.png` - Branding preview banner
-
-## O'rinbosar Design
-
-Qora cinematic temadir:
-- Fon: #07070B (qora-qora)
-- Indigo glow: #1B1640
-- Amber: #FFB23F
-- Orange: #FF5E3A
-
-Dizayn: amber play-triangle + orange film-frame border, shaffof fonda.
+Logo to'liq kvadrat ikonka (o'z qorong'i foni bilan) deb qabul qilinadi. Shaffof
+belgi yorqinlik bo'yicha ajratiladi: tilla qismlar qoladi, qorong'i fon o'chadi.
+Hozirgi logo 512×512 — 1024 ga kattalashtirilgan; asl 1024 PNG bo'lsa tiniqroq chiqadi.
