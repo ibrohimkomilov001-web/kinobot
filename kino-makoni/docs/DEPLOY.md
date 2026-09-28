@@ -5,6 +5,15 @@ instansiga, lekin **butunlay alohida** Docker Compose loyihasi sifatida
 o'rnatishni tushuntiradi. Bot (`kino-makon` repo, `~/KINO_MAKON`) bunga
 tegilmaydi va ishlashda davom etadi.
 
+> **Joriy holat (2026-09-28):** API bot serverida (`kinobot`, i-002a6503b1aa8cf4c,
+> eu-central-1, 3.127.203.19) `/opt/kino-makoni` da, compose loyihasi
+> `kino-makoni-app`. Bot loyihasi (`/app`: bot, web, postgres, caddy) o'zgartirilmagan —
+> faqat `/app/Caddyfile` oxiriga `# >>> kino-makoni` markerli api./stream. bloklari
+> qo'shilgan (zaxiralar: `/app/Caddyfile.bak-kino-makoni-*`). `/app` qayta deploy
+> qilinib Caddyfile ustidan yozilsa — `bootstrap.sh`ni qayta ishga tushiring, bloklar
+> qayta qo'shiladi. Server AWS SSM orqali boshqariladi (`kinobot-ec2-role` ga
+> `AmazonSSMManagedInstanceCore` biriktirilgan).
+
 ## 1. Arxitektura
 
 ```
