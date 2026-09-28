@@ -155,6 +155,28 @@ orqali push qiling). Workflow EC2'ga faqat `kino-makoni/` katalogini
 sparse-checkout qiladi, `.env`ni yozadi va
 `docker compose -p kino-makoni-app up -d --build` ishga tushiradi.
 
+#### Qo'lda deploy (GitHub Actions ishlamasa)
+
+Akkauntda Actions bloklangan bo'lsa (job'lar bir necha soniyada log'siz
+yiqiladi — odatda billing sababli), EC2'da to'g'ridan-to'g'ri:
+
+```bash
+ssh -i kinobot.pem ubuntu@<EC2_HOST>
+
+# Birinchi marta: faqat kino-makoni/ papkasini olish (bot papkasiga tegmaydi)
+git clone --filter=blob:none --sparse -b claude/eager-lovelace-0db0j8 \
+  https://github.com/ibrohimkomilov001-web/kinobot.git ~/KINO_MAKONI_APP
+cd ~/KINO_MAKONI_APP && git sparse-checkout set kino-makoni
+
+# .env ni joylash (tayyor faylni shu yerga ko'chiring), keyin:
+chmod 600 kino-makoni/deploy/.env
+docker compose -p kino-makoni-app -f kino-makoni/deploy/docker-compose.yml up -d --build
+
+# Keyingi yangilanishlar:
+cd ~/KINO_MAKONI_APP && git pull --ff-only && \
+  docker compose -p kino-makoni-app -f kino-makoni/deploy/docker-compose.yml up -d --build
+```
+
 ### (h) Tekshirish
 
 ```bash
