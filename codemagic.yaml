@@ -1,0 +1,151 @@
+# Kino Makoni — Codemagic CI
+#
+# Bu fayl faqat "kino-makoni/ios" ilovasi uchun. Repo ildizidagi eski Telegram
+# bot (bot.py, handlers/, ...) Railway orqali deploy qilinadi va bu faylga
+# umuman bog'liq emas — uni o'zgartirmang.
+#
+# Codemagic'da ulash: Apps → Add application → shu repo → "codemagic.yaml
+# aniqlangan" tanlanadi (Codemagic uni avtomatik root'dan topadi).
+#
+# Kerakli environment variable group (Codemagic UI: Teams → Environment
+# variable groups → "kino_makoni" nomi bilan yarating):
+#   - API_BASE_URL   — backend manzili, masalan "https://api.kinomakoni.uz"
+#                       (bo'sh qoldirilsa ilova demo rejimda ishlaydi —
+#                       ios/README.md'ga qarang).
+#
+# Guruh hali yaratilmagan yoki bo'sh bo'lsa ham build muvaffaqiyatli o'tadi:
+# API_BASE_URL bo'sh string sifatida ishlatiladi (demo rejim).
+
+workflows:
+  kino-makoni-ios-unsigned:
+    name: Kino Makoni — iOS unsigned IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    working_directory: kino-makoni/ios
+    environment:
+      groups:
+        - kino_makoni
+      vars:
+        # Guruhda API_BASE_URL sozlanmagan bo'lsa ham workflow qulamasligi
+        # uchun script ichida "${API_BASE_URL:-}" bilan qayta o'qiladi.
+        XCODE_PROJECT: "KinoMakoni.xcodeproj"
+        XCODE_SCHEME: "KinoMakoni"
+      xcode: latest
+      # Liquid Glass (iOS 26) SDK uchun Xcode 26+ SHART. "latest" Codemagic'da
+      # yangi Xcode versiyalari chiqqanda avtomatik ko'tariladi — agar build
+      # kutilmagan tarzda buzilsa, aniq versiyaga mixlang, masalan:
+      #   xcode: 26.0.1
+      # (Codemagic UI → Build → Xcode versiyasini tanlash orqali mavjud
+      # versiyalar ro'yxatini ko'rish mumkin.)
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: "main"
+          include: true
+          source: true
+      cancel_previous_builds: true
+    # Eslatma: "triggering" yuqoridagi push hodisasini avtomatlashtiradi;
+    # Codemagic UI'da "Start new build" tugmasi bilan har doim QO'LDA ham
+    # (istalgan branch'dan) ishga tushirish mumkin — bu build_type ga
+    # bog'liq emas, alohida sozlash talab qilinmaydi.
+    scripts:
+      - name: Xcode va SDK versiyasini chiqarish
+        script: |
+          set -euo pipefail
+          xcodebuild -version
+          echo "--- SDKs ---"
+          xcodebuild -showsdks | grep -i iphoneos || true
+          echo "--- iphoneos SDK versiyasi ---"
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: XcodeGen o'rnatish (mavjud bo'lmasa)
+        script: |
+          set -euo pipefail
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          else
+            echo "xcodegen allaqachon o'rnatilgan: $(xcodegen --version)"
+          fi
+
+      - name: Loyihani generatsiya qilish (project.yml -> .xcodeproj)
+        script: |
+          set -euo pipefail
+          xcodegen generate
+
+      - name: Arxivlash (imzosiz, sideload uchun)
+        script: |
+          set -euo pipefail
+          mkdir -p build
+
+          # API_BASE_URL bo'sh bo'lishi mumkin (demo rejim) — shuning uchun
+          # har doim aniqlangan bo'lishi kerak (unset xato bermasin).
+          API_BASE_URL="${API_BASE_URL:-}"
+          echo "API_BASE_URL='${API_BASE_URL}' bilan build qilinmoqda"
+
+          # MUHIM: API_BASE_URL http(s):// bilan boshlanadi va ichida "//"
+          # bor. Bu qiymatni DOUBLE-QUOTE ichida ishlatamiz ("$API_BASE_URL"),
+          # chunki:
+          #   - single quote ('$API_BASE_URL') shell o'zgaruvchini umuman
+          #     kengaytirmaydi — literal matn sifatida qoladi;
+          #   - double quote ichida "//" hech qanday maxsus ma'noga ega emas
+          #     (u faqat ${var//old/new} parametr almashtirish sintaksisida
+          #     maxsus, bu yerda unday emas);
+          #   - tirnoqsiz ishlatish esa bo'sh qiymatda argumentni butunlay
+          #     yo'qotib qo'yadi va xcodebuild build setting'ni noto'g'ri
+          #     o'qiydi.
+          # Shu sabab quyidagi qatorda "$API_BASE_URL" albatta qo'shtirnoqda.
+          xcodebuild archive \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/KinoMakoni.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            API_BASE_URL="$API_BASE_URL" \
+            2>&1 | tee build/xcodebuild.log
+
+      - name: IPA'ga qadoqlash (Payload/KinoMakoni.app)
+        script: |
+          set -euo pipefail
+          APP_PATH="build/KinoMakoni.xcarchive/Products/Applications/KinoMakoni.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Xato: $APP_PATH topilmadi (arxivlash muvaffaqiyatsiz bo'lgan bo'lishi mumkin)" >&2
+            exit 1
+          fi
+
+          rm -rf build/Payload
+          mkdir -p build/Payload
+          cp -R "$APP_PATH" build/Payload/
+
+          # zip'ni "build/" ichida turib yasaymiz — shunda arxiv ichida
+          # "Payload/KinoMakoni.app/..." bo'ladi, "build/Payload/..." kabi
+          # ortiqcha ichma-ich yo'l bo'lmaydi (IPA formati shuni talab qiladi).
+          cd build
+          rm -f KinoMakoni.ipa
+          zip -qry KinoMakoni.ipa Payload
+          cd ..
+
+          echo "--- IPA tarkibi (birinchi 20 qator) ---"
+          unzip -l build/KinoMakoni.ipa | head -20
+
+    artifacts:
+      # MUHIM: artifact yo'llari repo ILDIZIGA nisbatan (working_directory'ga
+      # emas), shuning uchun "kino-makoni/ios/" prefiksi bilan yoziladi.
+      - kino-makoni/ios/build/KinoMakoni.ipa
+      - kino-makoni/ios/build/xcodebuild.log
+      - kino-makoni/ios/build/*.log
+
+    # Ixtiyoriy: build tugagach email orqali xabar berish. Yoqish uchun
+    # pastdagi izohni oching va recipients'ni o'zgartiring. Codemagic email
+    # publishing uchun qo'shimcha sozlash shart emas (o'z-o'zidan ishlaydi).
+    # publishing:
+    #   email:
+    #     recipients:
+    #       - ibrohimkomilov001@gmail.com
+    #     notify:
+    #       success: true
+    #       failure: true

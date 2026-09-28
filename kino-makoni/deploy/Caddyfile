@@ -1,0 +1,60 @@
+# Kino Makoni — Caddy reverse proxy
+#
+# {$API_DOMAIN} va {$STREAM_DOMAIN} docker-compose.yml orqali .env'dan
+# o'qiladi (masalan api.kinomakoni.uz va stream.kinomakoni.uz).
+#
+# MUHIM (Cloudflare DNS sozlamalari, kino-makoni/docs/DEPLOY.md'ga ham
+# qarang):
+#   - API_DOMAIN    -> Cloudflare'da "Proxied" (turuncha bulut) — muammo
+#     yo'q, JSON javoblar kichik.
+#   - STREAM_DOMAIN -> Cloudflare'da "DNS only" (kulrang bulut) BO'LISHI
+#     SHART. Sabab: video (AVPlayer Range so'rovlari bilan) katta hajmda va
+#     uzoq davomiylikda oqadi — Cloudflare'ning bepul/Pro tarifi shartlari
+#     "video/katta media"ni ularning CDN orqali doimiy translatsiya qilishni
+#     cheklaydi (Cloudflare Stream/R2 kabi maxsus xizmatlar uchun mo'ljallangan
+#     emas). "DNS only" da so'rov to'g'ridan-to'g'ri EC2'dagi Caddy'ga boradi,
+#     Cloudflare faqat DNS sifatida ishlaydi.
+#
+# EC2 xavfsizlik guruhida 80 va 443 portlari OCHIQ bo'lishi kerak (TCP,
+# 0.0.0.0/0) — aks holda Caddy TLS sertifikat ololmaydi va foydalanuvchilar
+# ulanolmaydi.
+
+{$API_DOMAIN} {
+	encode gzip
+
+	reverse_proxy api:8000 {
+		# JSON API uchun oddiy timeout'lar yetarli.
+		flush_interval 0
+		transport http {
+			read_timeout 30s
+			write_timeout 30s
+			dial_timeout 5s
+		}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+
+{$STREAM_DOMAIN} {
+	# Video oqimi (Range so'rovlar, uzoq davomiylik) — bufferlanmasligi
+	# kerak, shuning uchun flush_interval -1 (darhol yuborish).
+	reverse_proxy api:8000 {
+		flush_interval -1
+		transport http {
+			read_timeout 3600s
+			write_timeout 3600s
+			dial_timeout 5s
+			# Video streaming uchun response header kutish vaqti ham uzoq
+			# bo'lishi kerak (Telegram'dan olish sekin bo'lishi mumkin).
+			response_header_timeout 60s
+		}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

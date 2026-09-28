@@ -1,0 +1,145 @@
+# Kino Makoni — iOS: imzosiz build tekshiruvi (GitHub Actions)
+#
+# Maqsad: Swift kodi kompilyatsiya bo'lishini tezda tekshirish (rahbar uchun).
+# Sideload uchun asosiy pipeline — Codemagic (../codemagic.yaml). Bu workflow
+# repo ildizidagi eski Telegram bot bilan bog'liq emas va uni o'zgartirmaydi.
+
+name: Kino Makoni iOS (unsigned build check)
+
+on:
+  push:
+    paths:
+      - "kino-makoni/ios/**"
+      - ".github/workflows/kino-makoni-ios.yml"
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "API_BASE_URL (bo'sh = demo rejim)"
+        required: false
+        default: ""
+        type: string
+
+concurrency:
+  group: kino-makoni-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # macOS 26 (Xcode 26 bilan, iOS 26 SDK/Liquid Glass uchun SHART) rasmiy
+    # umumiy foydalanish uchun 2026-02-26 dan e'lon qilingan
+    # (https://github.blog/changelog/2026-02-26-macos-26-is-now-generally-available-for-github-hosted-runners/).
+    # "macos-latest" 2026-06-15 dan boshlab bosqichma-bosqich macos-26'ga
+    # o'tkazilyapti, lekin muddatlarga qaram bo'lmaslik uchun labelni ANIQ
+    # yozamiz.
+    runs-on: macos-26
+    env:
+      XCODE_PROJECT: KinoMakoni.xcodeproj
+      XCODE_SCHEME: KinoMakoni
+      API_BASE_URL: ${{ github.event.inputs.api_base_url || '' }}
+    defaults:
+      run:
+        working-directory: kino-makoni/ios
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Mavjud Xcode versiyalarini ko'rsatish
+        run: |
+          set -o pipefail
+          echo "Nasb qilingan Xcode'lar:"
+          ls -1d /Applications/Xcode*.app 2>/dev/null || echo "(hech qanday /Applications/Xcode*.app topilmadi)"
+
+      - name: Xcode 26+ ni tanlash
+        run: |
+          set -o pipefail
+          # runner-images ba'zan bir nechta Xcode versiyasini saqlaydi;
+          # "Xcode_26"* prefiksidagi ENG YANGISINI tanlaymiz. Agar topilmasa,
+          # aniq xato bilan to'xtaymiz (default Xcode Liquid Glass SDK'ni
+          # qo'llamasligi mumkin).
+          CANDIDATE=$(ls -1d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n1 || true)
+          if [ -z "$CANDIDATE" ]; then
+            echo "::error::/Applications da Xcode_26*.app topilmadi. Runner image Xcode 26'ni hali ta'minlamagan bo'lishi mumkin — runs-on qiymatini tekshiring (actions/runner-images)."
+            ls -1d /Applications/Xcode*.app 2>/dev/null || true
+            exit 1
+          fi
+          echo "Tanlandi: $CANDIDATE"
+          sudo xcode-select -s "$CANDIDATE/Contents/Developer"
+
+      - name: Xcode va SDK versiyasini chiqarish
+        run: |
+          set -o pipefail
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos || true
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: XcodeGen o'rnatish
+        run: |
+          set -o pipefail
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Loyihani generatsiya qilish
+        run: |
+          set -o pipefail
+          xcodegen generate
+
+      - name: Arxivlash (imzosiz)
+        id: archive
+        run: |
+          set -o pipefail
+          mkdir -p build
+
+          # Quyidagi qiymatda "//" bor (https://...) — DOUBLE-QUOTE ichida
+          # bu maxsus emas (faqat ${var//a/b} parametr almashtirishda maxsus
+          # bo'ladi, bu yerda unday emas). Single quote esa $API_BASE_URL ni
+          # umuman kengaytirmaydi, shuning uchun ishlatilmaydi.
+          set +e
+          xcodebuild archive \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/KinoMakoni.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            API_BASE_URL="$API_BASE_URL" \
+            2>&1 | tee build.log
+          status=${PIPESTATUS[0]}
+          set -e
+          exit "$status"
+
+      - name: Xato loglarini chiqarish (build muvaffaqiyatsiz bo'lsa)
+        if: failure() && steps.archive.outcome == 'failure'
+        run: |
+          set -o pipefail
+          echo "----- build.log dagi 'error:' qatorlari (birinchi 100 ta) -----"
+          grep -E "error:" build.log | head -100 || echo "(build.log da 'error:' topilmadi — to'liq logni yuqorida qarang)"
+
+      - name: IPA'ga qadoqlash
+        run: |
+          set -o pipefail
+          APP_PATH="build/KinoMakoni.xcarchive/Products/Applications/KinoMakoni.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "::error::$APP_PATH topilmadi"
+            exit 1
+          fi
+          rm -rf build/Payload
+          mkdir -p build/Payload
+          cp -R "$APP_PATH" build/Payload/
+          (cd build && rm -f KinoMakoni.ipa && zip -qry KinoMakoni.ipa Payload)
+          unzip -l build/KinoMakoni.ipa | head -20
+
+      - name: IPA'ni artifact sifatida yuklash
+        uses: actions/upload-artifact@v4
+        with:
+          name: KinoMakoni-unsigned-ipa
+          path: |
+            kino-makoni/ios/build/KinoMakoni.ipa
+            kino-makoni/ios/build.log
+          retention-days: 14
+          if-no-files-found: warn

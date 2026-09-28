@@ -1,0 +1,126 @@
+# Kino Makoni — Backend (FastAPI) EC2'ga deploy
+#
+# Bot'ning ~/KINO_MAKON (kino-makon repo, TypeScript) deploy'iga UMUMAN
+# TEGMAYDI — bir xil EC2'da, lekin butunlay alohida compose loyihasi:
+# ~/KINO_MAKONI_APP, "-p kino-makoni-app". Bu workflow hech qachon
+# ~/KINO_MAKON'ga yozmaydi, undagi konteynerlarni to'xtatmaydi.
+
+name: Kino Makoni API Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "kino-makoni/backend/**"
+      - "kino-makoni/deploy/**"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ec2-kino-makoni-app
+  cancel-in-progress: false
+
+jobs:
+  check-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.EC2_HOST }}" ]; then
+            {
+              echo "### Kino Makoni API deploy — sozlanmagan"
+              echo ""
+              echo "\`EC2_HOST\` sekreti hali o'rnatilmagan, deploy o'tkazib yuborildi."
+              echo ""
+              echo "Kerakli GitHub sekretlar (Settings → Secrets and variables →"
+              echo "Actions): \`EC2_HOST\`, \`EC2_USER\`, \`EC2_SSH_KEY\`,"
+              echo "\`KINO_MAKONI_DOTENV\`. Batafsil: kino-makoni/docs/DEPLOY.md"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::EC2_HOST sekreti yo'q — deploy o'tkazib yuborildi (kino-makoni/docs/DEPLOY.md ga qarang)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: check-secrets
+    if: needs.check-secrets.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: "EC2'ga deploy qilish (sparse-checkout: kino-makoni/)"
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            APP_DIR="$HOME/KINO_MAKONI_APP"
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+            BRANCH="${{ github.ref_name }}"
+
+            # Faqat kino-makoni/ katalogini olib keluvchi sparse clone.
+            # Bot'ning ~/KINO_MAKON katalogiga bu yerda umuman tegilmaydi.
+            if [ ! -d "$APP_DIR/.git" ]; then
+              echo "📥 Sparse clone qilinmoqda ($APP_DIR)..."
+              git clone --no-checkout --filter=blob:none "$REPO_URL" "$APP_DIR"
+              cd "$APP_DIR"
+              git sparse-checkout init --cone
+            else
+              cd "$APP_DIR"
+            fi
+
+            git sparse-checkout set kino-makoni
+            echo "📥 Yangilanishlar olinmoqda ($BRANCH)..."
+            git fetch --depth=1 origin "$BRANCH"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+            git reset --hard "origin/$BRANCH"
+
+            if [ ! -f kino-makoni/deploy/docker-compose.yml ]; then
+              echo "❌ kino-makoni/deploy/docker-compose.yml topilmadi — deploy fayllari hali qo'shilmagan." >&2
+              exit 1
+            fi
+
+            echo "🔑 kino-makoni/deploy/.env yozilmoqda..."
+            # GitHub Secret KINO_MAKONI_DOTENV ichida .env ning TO'LIQ matni
+            # bo'lishi kerak (kino-makoni/backend/.env.example asosida).
+            cat > kino-makoni/deploy/.env << 'DOTENV_EOF'
+            ${{ secrets.KINO_MAKONI_DOTENV }}
+            DOTENV_EOF
+            chmod 600 kino-makoni/deploy/.env
+
+            echo "🐳 Docker build & up (loyiha: kino-makoni-app)..."
+            docker compose -p kino-makoni-app -f kino-makoni/deploy/docker-compose.yml up -d --build
+
+            echo "⏳ 10s kutilmoqda..."
+            sleep 10
+
+            echo "📋 Konteyner holati:"
+            docker compose -p kino-makoni-app -f kino-makoni/deploy/docker-compose.yml ps
+            echo "📋 Oxirgi loglar (api):"
+            docker compose -p kino-makoni-app -f kino-makoni/deploy/docker-compose.yml logs --tail 80 api
+
+            echo "✅ Deploy tugadi"
+
+      - name: Health check (/health, faqat 127.0.0.1:8000 orqali)
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            # api xizmati docker-compose.yml'da FAQAT 127.0.0.1:8000'ga bog'langan
+            # (tashqariga ochiq emas) — shuning uchun tekshiruv shu yerdan,
+            # EC2'ning o'zidan amalga oshadi.
+            if curl -fsS --max-time 5 http://127.0.0.1:8000/health; then
+              echo ""
+              echo "✅ /health OK"
+            else
+              echo "❌ /health javob bermadi" >&2
+              docker compose -p kino-makoni-app -f "$HOME/KINO_MAKONI_APP/kino-makoni/deploy/docker-compose.yml" logs --tail 150 api || true
+              exit 1
+            fi

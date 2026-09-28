@@ -1,0 +1,81 @@
+# Kino Makoni — backend + reverse proxy (EC2, alohida compose loyihasi).
+#
+# Ishga tushirish: `docker compose -p kino-makoni-app -f kino-makoni/deploy/docker-compose.yml up -d --build`
+# (bu -p bayrog'i muhim — bot'ning ~/KINO_MAKON loyihasi bilan aralashmasligi
+# uchun. Batafsil: kino-makoni/docs/DEPLOY.md)
+#
+# .env fayli shu katalogda (kino-makoni/deploy/.env) bo'lishi kerak —
+# namuna: kino-makoni/backend/.env.example. Undagi o'zgaruvchilar orasida
+# API_DOMAIN va STREAM_DOMAIN Caddy uchun ishlatiladi (pastga qarang).
+
+services:
+  api:
+    build:
+      context: ../backend
+    env_file:
+      - .env
+    volumes:
+      - kino_makoni_data:/data
+    # Faqat localhost'ga bog'lanadi — internetdan to'g'ridan-to'g'ri
+    # ochilmaydi, faqat Caddy orqali (yoki EC2'ning o'zidan health check
+    # uchun 127.0.0.1:8000).
+    ports:
+      - "127.0.0.1:8000:8000"
+    mem_limit: 300m
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      - api
+    env_file:
+      - .env
+    environment:
+      # Caddyfile ichida {$API_DOMAIN} / {$STREAM_DOMAIN} shu yerdan o'qiladi.
+      # .env'da bo'lmasa localhost'ga tushadi (Caddy ishga tushadi, lekin TLS
+      # sertifikat olinmaydi — domenlar sozlanmaguncha shunday qoladi).
+      API_DOMAIN: "${API_DOMAIN:-localhost}"
+      STREAM_DOMAIN: "${STREAM_DOMAIN:-localhost}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 64m
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ----------------------------------------------------------------------
+  # IXTIYORIY ALTERNATIVA: caddy o'rniga Cloudflare Tunnel (agar EC2'da
+  # 80/443'ni umuman ochmoqchi bo'lmasangiz). U holda yuqoridagi "caddy"
+  # xizmatini olib tashlang, api uchun ports'ni olib tashlang (faqat ichki
+  # tarmoqda qoladi) va quyidagini yoqing:
+  #
+  # cloudflared:
+  #   image: cloudflare/cloudflared:latest
+  #   command: tunnel --no-autoupdate run
+  #   env_file:
+  #     - .env   # TUNNEL_TOKEN shu yerda bo'lishi kerak
+  #   restart: unless-stopped
+  #   mem_limit: 64m
+  #
+  # DIQQAT: STREAM_DOMAIN uchun Cloudflare Tunnel'ni ISHLATMANG — video
+  # trafigi Cloudflare tarmog'i orqali o'tadi va bu ularning Video/Stream
+  # cheklovlariga tegishi mumkin (pastga, Caddyfile'dagi izohga qarang).
+  # ----------------------------------------------------------------------
+
+volumes:
+  kino_makoni_data:
+  caddy_data:
+  caddy_config:
