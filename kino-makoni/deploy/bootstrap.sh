@@ -94,7 +94,7 @@ PY
 url_host() { python3 -c 'import sys;from urllib.parse import urlsplit;print(urlsplit(sys.argv[1]).hostname or "")' "$1"; }
 psql_run() { # psql_run URL [psql argumentlari...]  (stdin — SQL)
   local url="$1"; shift
-  docker run --rm -i --network host "$PG_IMAGE" psql "$url" -v ON_ERROR_STOP=1 -X -q "$@"
+  docker run --rm -i --network "${PSQL_NET:-host}" "$PG_IMAGE" psql "$url" -v ON_ERROR_STOP=1 -X -q "$@"
 }
 
 # ---------- 0. Tekshiruvlar ----------
@@ -165,21 +165,83 @@ if [ "${#SK}" -lt 32 ] || [[ "$SK" == change-me* ]]; then
   ok "SECRET_KEY yaratildi"
 fi
 
-# ---------- 4. Botning .env'idan (faqat o'qish) ----------
-say "Bot sozlamalari o'qilmoqda: $BOT_ENV (o'zgartirilmaydi)"
-[ -f "$BOT_ENV" ] || die "$BOT_ENV topilmadi. BOT_ENV=/yo'l/.env bilan ko'rsating"
-BOT_DB_RAW="$(env_get DATABASE_URL "$BOT_ENV")"
-CHANNEL="$(env_get BASE_CHANNEL_ID "$BOT_ENV")"
-[ -n "$BOT_DB_RAW" ] || die "Botning .env'ida DATABASE_URL yo'q"
-[[ "$CHANNEL" =~ ^-100[0-9]+$ ]] || die "Botning .env'ida BASE_CHANNEL_ID noto'g'ri: '$CHANNEL'"
+# ---------- 4. Bot sozlamalari (faqat o'qish) ----------
+# Bot .env fayli bo'lsa undan, bo'lmasa ishlab turgan bot konteyneridan
+# (BASE_CHANNEL_ID muhit o'zgaruvchisi bor konteyner) o'qiladi.
+ct_env() { # ct_env KONTEYNER KALIT
+  docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$1" | sed -n "s/^$2=//p" | head -1
+}
+if [ -f "$BOT_ENV" ]; then
+  say "Bot sozlamalari: $BOT_ENV (o'zgartirilmaydi)"
+  BOT_DB_RAW="$(env_get DATABASE_URL "$BOT_ENV")"
+  CHANNEL="$(env_get BASE_CHANNEL_ID "$BOT_ENV")"
+else
+  say "Bot sozlamalari ishlab turgan bot konteyneridan o'qilmoqda (o'zgartirilmaydi)"
+  BOT_CT=""
+  for c in $(docker ps -q); do
+    if [ -n "$(ct_env "$c" BASE_CHANNEL_ID)" ]; then BOT_CT="$c"; break; fi
+  done
+  [ -n "$BOT_CT" ] || die "Bot topilmadi: $BOT_ENV yo'q va BASE_CHANNEL_ID'li konteyner ishlamayapti"
+  ok "bot konteyneri: $(docker inspect -f '{{.Name}}' "$BOT_CT" | tr -d /)"
+  BOT_DB_RAW="$(ct_env "$BOT_CT" DATABASE_URL)"
+  CHANNEL="$(ct_env "$BOT_CT" BASE_CHANNEL_ID)"
+fi
+BOT_DB_RAW="${BOT_DB_RAW%\"}"; BOT_DB_RAW="${BOT_DB_RAW#\"}"
+CHANNEL="${CHANNEL%\"}"; CHANNEL="${CHANNEL#\"}"
+[ -n "$BOT_DB_RAW" ] || die "Bot sozlamalarida DATABASE_URL yo'q"
+[[ "$CHANNEL" =~ ^-100[0-9]+$ ]] || die "Bot sozlamalarida BASE_CHANNEL_ID noto'g'ri: '$CHANNEL'"
 env_set TG_BASE_CHANNEL_ID "$CHANNEL" "$ENV_FILE"
 ok "baza kanal: $CHANNEL"
 
 BOT_DB="$(clean_pg_url "$BOT_DB_RAW")"
-case "$(url_host "$BOT_DB")" in
-  localhost|127.0.0.1|db|postgres)
-    warn "Bot bazasi lokal ($(url_host "$BOT_DB")) — API konteyneri unga ulana olmasligi mumkin" ;;
+DB_HOST="$(url_host "$BOT_DB")"
+
+# Baza Docker konteyneri (masalan compose'dagi "postgres" servisi) bo'lsa — o'sha
+# konteyner turgan tarmoqni topamiz: psql ham, ilova API'si ham shu tarmoqqa ulanadi.
+find_db_net() { # find_db_net HOST -> tarmoq nomi
+  local c name svc net aliases
+  for c in $(docker ps -q); do
+    name="$(docker inspect -f '{{.Name}}' "$c" | tr -d /)"
+    svc="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$c")"
+    while IFS='=' read -r net aliases; do
+      [ -n "$net" ] || continue
+      if [ "$name" = "$1" ] || [ "$svc" = "$1" ] || [[ ",$aliases," == *",$1,"* ]]; then
+        echo "$net"; return 0
+      fi
+    done < <(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}={{join $v.Aliases ","}}{{"\n"}}{{end}}' "$c")
+  done
+  return 1
+}
+DB_NET=""
+PSQL_NET="host"
+case "$DB_HOST" in
+  localhost|127.0.0.1)
+    warn "Bot bazasi hostda (localhost) — API konteyneri unga ulana olmasligi mumkin" ;;
+  *)
+    if ! getent hosts "$DB_HOST" >/dev/null 2>&1; then
+      DB_NET="$(find_db_net "$DB_HOST" || true)"
+      [ -n "$DB_NET" ] || die "Bot bazasi '$DB_HOST' — bunday konteyner/host topilmadi"
+      PSQL_NET="$DB_NET"
+      ok "bot bazasi Docker tarmog'ida: $DB_HOST ($DB_NET)"
+    fi ;;
 esac
+
+# API'ni bot bazasi tarmog'iga ulash (compose qo'shimcha fayli, git'ga kirmaydi)
+NET_OVERRIDE="$DEPLOY_DIR/.botnet.yml"
+if [ -n "$DB_NET" ]; then
+  cat > "$NET_OVERRIDE" <<YML
+services:
+  api:
+    networks: [default, botnet]
+networks:
+  botnet:
+    external: true
+    name: $DB_NET
+YML
+  COMPOSE+=(-f "$NET_OVERRIDE")
+else
+  rm -f "$NET_OVERRIDE"
+fi
 
 # ---------- 5. Bazalar: o'qish roli + alohida ilova bazasi ----------
 say "Postgres sozlanmoqda (psql: $PG_IMAGE)"
