@@ -279,3 +279,13 @@ def test_description_drops_inline_mention_and_title_repeat():
     )
     # E-mail mention hisoblanmaydi
     assert extract_description("Yozing: info@mail.uz", None) == "Yozing: info@mail.uz"
+
+
+def test_genre_variants_are_canonicalized():
+    from app.services.genres import parse_genres
+
+    assert parse_genres("драма, Комедия") == [("Drama", "drama"), ("Komediya", "komediya")]
+    assert parse_genres("oilaviy / Oilaviy") == [("Oilaviy", "oilaviy")]
+    assert parse_genres("боевик") == [("Jangari", "jangari")]
+    assert parse_genres("qo'rqinchli") == [("Qo'rqinchli", "qorqinchli")]
+    assert parse_genres("noyob janr") == [("Noyob janr", "noyob-janr")]

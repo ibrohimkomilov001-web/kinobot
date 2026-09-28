@@ -21,11 +21,11 @@ async def list_genres(
     _user: User = Depends(get_current_user),
 ) -> GenresResponse:
     stmt = (
-        select(TitleGenre.slug, TitleGenre.name, func.count(TitleGenre.id))
+        select(TitleGenre.slug, func.max(TitleGenre.name), func.count(TitleGenre.id))
         .join(Title, Title.id == TitleGenre.title_id)
         .where(Title.is_deleted.is_(False))
-        .group_by(TitleGenre.slug, TitleGenre.name)
-        .order_by(func.count(TitleGenre.id).desc(), TitleGenre.name)
+        .group_by(TitleGenre.slug)
+        .order_by(func.count(TitleGenre.id).desc(), TitleGenre.slug)
     )
     rows = (await session.execute(stmt)).all()
     return GenresResponse(

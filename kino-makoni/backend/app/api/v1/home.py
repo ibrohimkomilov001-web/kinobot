@@ -122,10 +122,10 @@ async def get_home(
 
     # eng katta janrlardan boshlab, har biri uchun bitta qator (max 6 ta)
     genre_count_stmt = (
-        select(TitleGenre.slug, TitleGenre.name, func.count(TitleGenre.id))
+        select(TitleGenre.slug, func.max(TitleGenre.name), func.count(TitleGenre.id))
         .join(Title, Title.id == TitleGenre.title_id)
         .where(not_deleted)
-        .group_by(TitleGenre.slug, TitleGenre.name)
+        .group_by(TitleGenre.slug)
         .order_by(func.count(TitleGenre.id).desc())
         .limit(GENRE_ROW_LIMIT)
     )
