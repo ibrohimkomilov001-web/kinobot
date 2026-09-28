@@ -125,10 +125,12 @@ workflows:
           unzip -l build/KinoMakoni.ipa | head -20
 
     artifacts:
-      # MUHIM: artifact yo'llari repo ILDIZIGA nisbatan (working_directory'ga
-      # emas), shuning uchun "kino-makoni/ios/" prefiksi bilan yoziladi.
-      - kino-makoni/ios/build/KinoMakoni.ipa
-      - kino-makoni/ios/build/xcodebuild.log
+      # Yo'llar working_directory'ga (kino-makoni/ios) nisbatan qidiriladi —
+      # 28.09 build'ida ildizga nisbatan yozilganlari "No artifacts" berdi.
+      # Ildiz shakli zaxira sifatida qoldirildi (mos kelmagani e'tiborsiz).
+      - build/*.ipa
+      - build/*.log
+      - kino-makoni/ios/build/*.ipa
       - kino-makoni/ios/build/*.log
 
     # Ixtiyoriy: build tugagach email orqali xabar berish. Yoqish uchun
