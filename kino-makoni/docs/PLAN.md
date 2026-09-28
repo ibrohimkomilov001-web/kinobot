@@ -1,6 +1,6 @@
 # Kino Makoni — iOS ilova rejasi
 
-> Holat: **1-bosqich (MVP) ishlanmoqda.** Sana: 2026-09-28.
+> Holat: **1-bosqich (MVP) tugadi — ilova iPhone'da ishlayapti, API bot serverida jonli.** Sana: 2026-09-28.
 
 ## Qabul qilingan qarorlar
 
@@ -52,9 +52,9 @@ Repo ildizidagi eski bot fayllari (`bot.py`, `handlers/` …) bu ishda o'zgartir
 
 ### 1-bosqich — MVP (hozir)
 - [x] Arxitektura, API kontrakti (`docs/API.md`), umumiy modullar (config, imzolash)
-- [ ] Backend: katalog sinxronlash, qidiruv (kirill/lotin), bosh sahifa, sevimlilar, progress, playback
-- [ ] Stream: Telegram MTProto → HTTP Range (AVPlayer uchun), thumbnail'lar
-- [ ] iOS: Bosh sahifa, Qidiruv, Saqlanganlar, Profil, Batafsil, Pleyer (PiP), demo rejim
+- [x] Backend: katalog sinxronlash, qidiruv (kirill/lotin), bosh sahifa, sevimlilar, progress, playback
+- [x] Stream: Telegram MTProto → HTTP Range (AVPlayer uchun), thumbnail'lar
+- [x] iOS: Bosh sahifa, Qidiruv, Saqlanganlar, Profil, Batafsil, Pleyer (PiP), demo rejim
 - [x] Codemagic + GitHub Actions: imzosiz `.ipa`
 - [x] Deploy hujjatlari (EC2 + Caddy + Cloudflare), logo va ikonka
 
