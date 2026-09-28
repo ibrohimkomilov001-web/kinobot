@@ -226,19 +226,48 @@ case "$DB_HOST" in
     fi ;;
 esac
 
-# API'ni bot bazasi tarmog'iga ulash (compose qo'shimcha fayli, git'ga kirmaydi)
+# ---------- 4b. 80/443: o'z Caddy'miz yoki serverdagi mavjud Caddy ----------
+# 443 ni boshqa Caddy konteyneri (masalan bot loyihasining sayti) band qilgan
+# bo'lsa — o'z Caddy'mizni ko'tarmaymiz, API'ni o'sha Caddy tarmog'iga ulab,
+# uning Caddyfile'iga faqat api./stream. bloklarini qo'shamiz.
+PROXY_CT="" PROXY_NET="" PROXY_FILE=""
+if ! "${COMPOSE[@]}" ps --status running --services 2>/dev/null | grep -qx caddy; then
+  PROXY_CT="$(docker ps --filter publish=443 --format '{{.Names}}' | head -1)"
+  if [ -n "$PROXY_CT" ]; then
+    docker inspect -f '{{.Config.Image}}' "$PROXY_CT" | grep -q caddy \
+      || die "443 ni '$PROXY_CT' konteyneri band qilgan (Caddy emas) — qo'lda sozlash kerak"
+    PROXY_FILE="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/etc/caddy/Caddyfile"}}{{.Source}}{{end}}{{end}}' "$PROXY_CT")"
+    PROXY_NET="$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' "$PROXY_CT" | head -1)"
+    [ -n "$PROXY_FILE" ] && [ -f "$PROXY_FILE" ] \
+      || die "'$PROXY_CT' Caddyfile'i fayl sifatida ulanmagan — qo'lda sozlash kerak"
+    ok "mavjud Caddy ishlatiladi: $PROXY_CT ($PROXY_FILE, tarmoq $PROXY_NET)"
+  else
+    BUSY="$( (ss -Htlnp 2>/dev/null || true) | awk '$4 ~ /:(80|443)$/ {print $4, $6}')"
+    [ -z "$BUSY" ] || die "80/443 port band (Docker emas):
+$BUSY
+Serverdagi veb-serverni to'xtatmaymiz — qo'lda sozlash kerak."
+  fi
+fi
+
+# API'ni kerakli Docker tarmoqlariga ulash (compose qo'shimcha fayli, git'ga kirmaydi)
 NET_OVERRIDE="$DEPLOY_DIR/.botnet.yml"
-if [ -n "$DB_NET" ]; then
-  cat > "$NET_OVERRIDE" <<YML
-services:
-  api:
-    networks: [default, botnet]
-networks:
-  botnet:
-    external: true
-    name: $DB_NET
-YML
+EXT_NETS=()
+for n in "$DB_NET" "$PROXY_NET"; do
+  if [ -n "$n" ] && [[ " ${EXT_NETS[*]} " != *" $n "* ]]; then EXT_NETS+=("$n"); fi
+done
+if [ "${#EXT_NETS[@]}" -gt 0 ]; then
+  {
+    echo "services:"; echo "  api:"; echo "    networks:"; echo "      default: {}"
+    for i in "${!EXT_NETS[@]}"; do
+      echo "      ext$i:"; echo "        aliases: [kino-makoni-api]"
+    done
+    echo "networks:"
+    for i in "${!EXT_NETS[@]}"; do
+      echo "  ext$i:"; echo "    external: true"; echo "    name: ${EXT_NETS[$i]}"
+    done
+  } > "$NET_OVERRIDE"
   COMPOSE+=(-f "$NET_OVERRIDE")
+  ok "API tarmoqlari: ${EXT_NETS[*]} (alias kino-makoni-api)"
 else
   rm -f "$NET_OVERRIDE"
 fi
@@ -304,20 +333,13 @@ SQL
 fi
 
 # ---------- 6. Ishga tushirish ----------
-# 80/443 boshqa dastur (nginx, apache, boshqa sayt) band qilgan bo'lsa — hech narsani buzmaymiz
-if ! "${COMPOSE[@]}" ps --status running --services 2>/dev/null | grep -qx caddy; then
-  BUSY="$( (ss -Htlnp 2>/dev/null || sudo -n ss -Htlnp 2>/dev/null || true) \
-    | awk '$4 ~ /:(80|443)$/ {print $4, $6}')"
-  if [ -n "$BUSY" ]; then
-    die "80/443 port band:
-$BUSY
-Serverda boshqa veb-server ishlayapti (masalan kinomakoni.uz sayti). Uni to'xtatmaymiz.
-Menga shu natijani yuboring — Caddy'ni o'sha veb-server orqasiga ulash sozlamasini beraman."
-  fi
+if [ -n "$PROXY_CT" ]; then
+  say "API ishga tushirilmoqda (birinchi build 3-6 daqiqa; Caddy — mavjud $PROXY_CT)"
+  "${COMPOSE[@]}" up -d --build --remove-orphans api
+else
+  say "API va Caddy ishga tushirilmoqda (birinchi build 3-6 daqiqa)"
+  "${COMPOSE[@]}" up -d --build --remove-orphans
 fi
-
-say "API va Caddy ishga tushirilmoqda (birinchi build 3-6 daqiqa)"
-"${COMPOSE[@]}" up -d --build --remove-orphans
 
 say "Sog'liq tekshiruvi"
 HEALTH=""
@@ -331,6 +353,59 @@ if [ -z "$HEALTH" ]; then
   die "API javob bermadi (loglar yuqorida)"
 fi
 ok "health: $HEALTH"
+
+# ---------- 6b. Mavjud Caddy'ga api./stream. bloklari ----------
+if [ -n "$PROXY_CT" ]; then
+  say "Caddy ($PROXY_CT): api.$DOMAIN va stream.$DOMAIN qo'shilmoqda"
+  BAK="$PROXY_FILE.bak-kino-makoni-$(date +%Y%m%d-%H%M%S)"
+  cp -p "$PROXY_FILE" "$BAK"
+  # Fayl joyida (inode saqlanib) yoziladi — konteynerga bitta fayl bind-mount qilingan
+  python3 - "$PROXY_FILE" "$DOMAIN" <<'PY'
+import re, sys
+path, domain = sys.argv[1], sys.argv[2]
+begin = "# >>> kino-makoni (bootstrap.sh qo'shgan — Kino Makoni iOS ilovasi API) >>>"
+end = "# <<< kino-makoni <<<"
+block = f"""{begin}
+api.{domain} {{
+	encode gzip
+	reverse_proxy kino-makoni-api:8000
+}}
+
+stream.{domain} {{
+	reverse_proxy kino-makoni-api:8000 {{
+		flush_interval -1
+		transport http {{
+			read_timeout 3600s
+			write_timeout 3600s
+			dial_timeout 5s
+			response_header_timeout 60s
+		}}
+	}}
+}}
+{end}
+"""
+with open(path, "r+") as f:
+    text = f.read()
+    text = re.sub(re.escape(begin) + r".*?" + re.escape(end) + r"\n?", "", text, flags=re.S).rstrip("\n")
+    f.seek(0); f.write(text + "\n\n" + block); f.truncate()
+PY
+  if docker exec "$PROXY_CT" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/tmp/km_caddy.log 2>&1; then
+    docker exec "$PROXY_CT" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >>/tmp/km_caddy.log 2>&1 \
+      || { cat "$BAK" > "$PROXY_FILE"; tail -20 /tmp/km_caddy.log; die "caddy reload xato — Caddyfile qaytarildi"; }
+    ok "Caddy yangilandi (zaxira: $BAK)"
+  else
+    cat "$BAK" > "$PROXY_FILE"
+    tail -20 /tmp/km_caddy.log
+    die "Caddyfile tekshiruvdan o'tmadi — o'zgarish qaytarildi"
+  fi
+  for _ in $(seq 1 20); do
+    code="$(curl -s -o /dev/null -w '%{http_code}' -m 5 --resolve "api.$DOMAIN:443:127.0.0.1" "https://api.$DOMAIN/health" || true)"
+    [ "$code" = 200 ] && break
+    sleep 3
+  done
+  if [ "${code:-}" = 200 ]; then ok "https://api.$DOMAIN/health — HTTPS ishlayapti"
+  else warn "api.$DOMAIN HTTPS hali tayyor emas (sertifikat olinmoqda yoki DNS) — birozdan so'ng tekshiring"; fi
+fi
 
 # ---------- 7. Telegram tekshiruvi ----------
 say "Telegram (yordamchi bot) tekshirilmoqda"
