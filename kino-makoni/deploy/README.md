@@ -11,7 +11,6 @@ instansda ishlaydi. To'liq qadamlar: [`../docs/DEPLOY.md`](../docs/DEPLOY.md).
 | `docker-compose.yml` | `api` (FastAPI, `../backend`dan build) + `caddy` (TLS/reverse proxy) |
 | `Caddyfile` | `API_DOMAIN` va `STREAM_DOMAIN` uchun reverse proxy sozlamalari |
 | `.env` | **Git'ga tushmaydi.** `../backend/.env.example` asosida to'ldiriladi; EC2'da `KINO_MAKONI_DOTENV` GitHub Secret'idan avtomatik yoziladi (`kino-makoni-api-deploy.yml`) |
-| `scripts/tg_check.py` | Yordamchi bot Telegram'ga ulanadimi va baza kanalida admin ekanini tekshiradi |
 
 ## Ishga tushirish (EC2'da, avtomatik)
 
@@ -37,9 +36,11 @@ docker compose -p kino-makoni-app -f docker-compose.yml down
 
 ## Yordamchi botni tekshirish
 
+Skript backend ichida (`../backend/scripts/tg_check.py`) — konteynerda ishga tushiriladi:
+
 ```bash
-pip install telethon cryptg   # yoki: pip install -r ../backend/requirements.txt
-python3 scripts/tg_check.py
+docker compose -p kino-makoni-app -f docker-compose.yml \
+  exec api python scripts/tg_check.py --msg <baseMsgId> --download-first-mb 16
 ```
 
 ## Eslatmalar

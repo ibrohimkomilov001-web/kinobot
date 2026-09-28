@@ -66,7 +66,7 @@ bo'limiga qarang.
 3. Bu botni bot bazasi kanaliga (video fayllar saqlanadigan maxfiy kanal)
    **ADMIN** sifatida qo'shing (kanal → Administrators → Add Admin →
    yangi bot). Admin bo'lmasa video fayllarni o'qiy olmaydi.
-4. Tekshirish: `kino-makoni/deploy/scripts/tg_check.py` (7-qadamga qarang).
+4. Tekshirish: `kino-makoni/backend/scripts/tg_check.py` (pastdagi "Tekshirish" bo'limiga qarang).
 
 ### (b) Telegram API ID/Hash (my.telegram.org)
 
@@ -165,12 +165,17 @@ curl -I "https://stream.<domen>/v1/stream/<token>/video.mp4"
 # 200 yoki 206 (imzolangan token bilan)
 ```
 
-Yordamchi bot sozlamalarini tekshirish (EC2'da yoki lokal):
+Yordamchi bot sozlamalarini tekshirish — EC2'da, ishlab turgan konteyner ichida
+(`<id>` — bot bazasidagi biror kinoning `baseMsgId` qiymati):
 
 ```bash
-cd kino-makoni/deploy
-python3 scripts/tg_check.py
+cd ~/KINO_MAKONI_APP
+docker compose -p kino-makoni-app -f kino-makoni/deploy/docker-compose.yml \
+  exec api python scripts/tg_check.py --msg <id> --download-first-mb 16
 ```
+
+Skript login, kanalga kirish, video formati (MKV/WEBM ogohlantirishi, MP4
+"fast start") va yuklab olish tezligini tekshiradi.
 
 ### (i) Cloudflare R2 (keyingi bosqich — admin panel)
 

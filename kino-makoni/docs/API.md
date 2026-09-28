@@ -11,8 +11,9 @@ ham shu shakllarga amal qiladi; o'zgarish kerak bo'lsa avval shu fayl yangilanad
   { "error": { "code": "not_found", "message": "Kino topilmadi" } }
   ```
   Kodlar: `unauthorized` (401), `forbidden` (403), `premium_required` (403),
-  `not_found` (404), `unavailable` (409), `validation_error` (422),
-  `rate_limited` (429), `internal` (500).
+  `not_found` (404), `unavailable` (409; stream'da 503), `range_not_satisfiable` (416),
+  `validation_error` (422), `rate_limited` (429; stream'da 503 + `Retry-After`),
+  `internal` (500).
 
 ## Autentifikatsiya
 
@@ -154,7 +155,9 @@ Xatolar: `premium_required` (403, `PREMIUM_ENFORCED=true` va kino premium bo'lsa
 Autentifikatsiyasiz, imzolangan `token` bilan. HTTP `Range` to'liq qo'llanadi:
 `206 Partial Content`, `Accept-Ranges: bytes`, `Content-Range`, `Content-Length`,
 `Content-Type` (Telegram'dagi mime, odatda `video/mp4`). `Range` bo'lmasa `200`.
-Muddati o'tgan / soxta token → 403. AVPlayer to'g'ridan-to'g'ri shu URL'ni o'ynaydi.
+Muddati o'tgan / soxta token → 403. Noto'g'ri `Range` → 416 (`Content-Range: bytes */<hajm>`).
+Telegram ulanmagan → 503 `unavailable`; Telegram FloodWait uzun bo'lsa → 503
+`rate_limited` + `Retry-After`. AVPlayer to'g'ridan-to'g'ri shu URL'ni o'ynaydi.
 
 ### `GET /v1/thumb/{token}/poster.jpg`
 Imzolangan (muddatsiz) token bilan Telegram video thumbnail'ini qaytaradi
